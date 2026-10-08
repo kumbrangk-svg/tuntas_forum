@@ -1,0 +1,19 @@
+name: Supabase Anti-Pause Keepalive
+
+on:
+  schedule:
+    # Berjalan tiap 2 hari pukul 06:00 UTC (13:00 WIB)
+    - cron: "0 6 */2 * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Ping Database Heartbeat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger RPC Heartbeat
+        run: |
+          curl -fsS -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/heartbeat" \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
