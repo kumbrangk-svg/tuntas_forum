@@ -1,6 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+type CookieItem = {
+  name: string;
+  value: string;
+  options?: Parameters<Awaited<ReturnType<typeof cookies>>['set']>[2];
+};
+
 export const createClient = async () => {
   const cookieStore = await cookies();
 
@@ -12,13 +18,13 @@ export const createClient = async () => {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieItem[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Ditangani di Middleware jika dipanggil dari Server Component
+            // Dipanggil dari Server Component aman diabaikan
           }
         },
       },
