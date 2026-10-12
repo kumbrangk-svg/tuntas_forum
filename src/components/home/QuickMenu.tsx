@@ -1,52 +1,63 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 const CARDS = [
   {
-    title: "Catatan",
-    desc: "Lihat dan bagikan catatan tugas & masalah.",
+    title: "Catatan Kerja",
+    desc: "Panduan SOP tugas dan solusi masalah teknis.",
     icon: "📄",
     href: "/cari?jenis=tugas",
-    bg: "bg-blue-50 text-blue-600 border-blue-100",
+    badge: "SOP & Masalah",
+    color: "from-blue-50 to-indigo-50/50 hover:border-blue-300 text-blue-700",
   },
   {
-    title: "Forum",
-    desc: "Ajukan pertanyaan, dapatkan jawaban.",
+    title: "Forum Diskusi",
+    desc: "Tanya jawab praktis antar pelaksana satker.",
     icon: "💬",
     href: "/forum",
-    bg: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    badge: "Komunitas",
+    color: "from-emerald-50 to-teal-50/50 hover:border-emerald-300 text-emerald-700",
   },
   {
-    title: "Regulasi",
-    desc: "Akses peraturan dan ketentuan terkait.",
+    title: "Basis Regulasi",
+    desc: "Katalog PMK, Perdirjen, dan regulasi APBN.",
     icon: "⚖️",
     href: "/regulasi",
-    bg: "bg-purple-50 text-purple-600 border-purple-100",
+    badge: "Terkait",
+    color: "from-purple-50 to-violet-50/50 hover:border-purple-300 text-purple-700",
   },
   {
-    title: "Tag",
-    desc: "Jelajahi topik sesuai minat Anda.",
+    title: "Jelajah Tag",
+    desc: "Eksplorasi topik, aplikasi, dan unit kerja.",
     icon: "🏷️",
     href: "/tag",
-    bg: "bg-amber-50 text-amber-600 border-amber-100",
+    badge: "Taksonomi",
+    color: "from-amber-50 to-orange-50/50 hover:border-amber-300 text-amber-700",
   },
 ];
 
 export function QuickMenu() {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
       {CARDS.map((card) => (
         <Link
           key={card.title}
           href={card.href}
-          className="p-4 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 shadow-2xs hover:shadow-sm transition flex flex-col justify-between"
+          className={`group relative p-4 bg-gradient-to-br ${card.color} bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between`}
         >
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg border ${card.bg}`}>
-              {card.icon}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">{card.icon}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 border border-slate-200">
+                {card.badge}
+              </span>
             </div>
-            <h3 className="font-bold text-slate-800 text-sm">{card.title}</h3>
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1 group-hover:text-blue-600 transition">
+              <span>{card.title}</span>
+              <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition" />
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-snug">{card.desc}</p>
           </div>
-          <p className="text-[11px] text-slate-500 leading-snug">{card.desc}</p>
         </Link>
       ))}
     </div>
