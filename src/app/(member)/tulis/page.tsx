@@ -4,33 +4,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { SourcesField, type SourceItem } from '@/components/editor/SourcesField';
+import { RegulationPicker, type SelectedReg } from '@/components/editor/RegulationPicker';
 import { generateNoteSlug } from '@/lib/note-utils';
 
 type NoteKind = 'tugas' | 'masalah';
 
 const DEFAULT_TEMPLATES: Record<NoteKind, string> = {
-  tugas: `1. Tujuan & Ruang Lingkup:
-- 
-
-2. Dasar Hukum:
-- 
-
-3. Langkah Kerja:
-- 
-
-4. Output / Dokumen Hasil:
-- `,
-  masalah: `1. Gejala & Pesan Eror:
-- 
-
-2. Penyebab Masalah:
-- 
-
-3. Langkah Solusi / Penanganan:
-- 
-
-4. Pencegahan:
-- `,
+  tugas: `1. Tujuan & Ruang Lingkup:\n- \n\n2. Dasar Hukum:\n- \n\n3. Langkah Kerja:\n- \n\n4. Output / Dokumen Hasil:\n- `,
+  masalah: `1. Gejala & Pesan Eror:\n- \n\n2. Penyebab Masalah:\n- \n\n3. Langkah Solusi / Penanganan:\n- \n\n4. Pencegahan:\n- `,
 };
 
 export default function TulisCatatanPage() {
@@ -42,6 +23,7 @@ export default function TulisCatatanPage() {
   const [summary, setSummary] = useState('');
   const [bodyText, setBodyText] = useState(DEFAULT_TEMPLATES.tugas);
   const [sources, setSources] = useState<SourceItem[]>([]);
+  const [selectedRegs, setSelectedRegs] = useState<SelectedReg[]>([]);
   const [editMode, setEditMode] = useState<'suggest' | 'open' | 'locked'>('suggest');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -57,20 +39,16 @@ export default function TulisCatatanPage() {
     setErrorMsg('');
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/masuk');
-      return;
-    }
+    if (!user) { router.push('/masuk'); return; }
 
     const noteId = crypto.randomUUID();
     const slug = generateNoteSlug(title, noteId);
-
     const contentJson = {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: bodyText }] }],
     };
 
-    const { error } = await supabase.from('notes').insert({
+    const { error: noteError } = await supabase.from('notes').insert({
       id: noteId,
       author_id: user.id,
       kind,
@@ -84,12 +62,18 @@ export default function TulisCatatanPage() {
       status: 'published',
     });
 
-    if (error) {
-      setErrorMsg(error.message);
+    if (noteError) {
+      setErrorMsg(noteError.message);
       setLoading(false);
-    } else {
-      router.push(`/catatan/${slug}`);
+      return;
     }
+
+    if (selectedRegs.length > 0) {
+      const links = selectedRegs.map(r => ({ note_id: noteId, regulation_id: r.id }));
+      await supabase.from('note_regulations').insert(links);
+    }
+
+    router.push(`/catatan/${slug}`);
   };
 
   return (
@@ -104,18 +88,14 @@ export default function TulisCatatanPage() {
           <button
             type="button"
             onClick={() => handleKindChange('tugas')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${
-              kind === 'tugas' ? 'bg-white shadow text-blue-600' : 'text-slate-600'
-            }`}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${kind === 'tugas' ? 'bg-white shadow text-blue-600' : 'text-slate-600'}`}
           >
             Tugas / SOP
           </button>
           <button
             type="button"
             onClick={() => handleKindChange('masalah')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${
-              kind === 'masalah' ? 'bg-white shadow text-blue-600' : 'text-slate-600'
-            }`}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${kind === 'masalah' ? 'bg-white shadow text-blue-600' : 'text-slate-600'}`}
           >
             Masalah / Solusi
           </button>
@@ -148,23 +128,21 @@ export default function TulisCatatanPage() {
         <div>
           <div className="flex justify-between items-center mb-1">
             <label className="block text-xs font-semibold text-slate-700">Isi Catatan / Panduan *</label>
-            <button
-              type="button"
-              onClick={() => setBodyText('')}
-              className="text-[11px] text-slate-400 hover:text-slate-600"
-            >
+            <button type="button" onClick={() => setBodyText('')} className="text-[11px] text-slate-400 hover:text-slate-600">
               Kosongkan template
             </button>
           </div>
           <textarea
             required
             rows={10}
-            placeholder="Ketik langkah, detail panduan, atau solusi lengkap di sini..."
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
             className="w-full px-3 py-2 border rounded-md text-sm font-mono leading-relaxed bg-white"
           />
         </div>
+
+        <RegulationPicker selected={selectedRegs} onChange={setSelectedRegs} />
+        <SourcesField sources={sources} onChange={setSources} />
 
         <div>
           <label className="block text-xs font-semibold text-slate-700">Izin Kolaborasi Konten</label>
@@ -178,8 +156,6 @@ export default function TulisCatatanPage() {
             <option value="locked">Terkunci (Hanya Anda & Admin yang dapat mengedit)</option>
           </select>
         </div>
-
-        <SourcesField sources={sources} onChange={setSources} />
 
         <button
           type="submit"
