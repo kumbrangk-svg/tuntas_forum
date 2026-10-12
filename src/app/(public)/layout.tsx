@@ -4,11 +4,11 @@ import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-6">
         <TopHeader />
-        <div className="flex-1">{children}</div>
+        <main className="flex-1 w-full">{children}</main>
         <BottomNav />
       </div>
     </div>
