@@ -4,7 +4,7 @@ import { getUser } from '@/lib/auth';
 import { AnswerList } from '@/components/forum/AnswerList';
 import { AnswerForm } from '@/components/forum/AnswerForm';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 export default async function QuestionDetailPage({
   params,
@@ -36,6 +36,10 @@ export default async function QuestionDetailPage({
     .order('created_at', { ascending: true });
 
   const isAsker = Boolean(currentUser && currentUser.id === q.author_id);
+  
+  // Tangani tipe author baik array maupun objek tunggal
+  const authorData: any = Array.isArray(q.author) ? q.author[0] : q.author;
+  const authorName = authorData?.display_name || 'Pelaksana';
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -46,7 +50,7 @@ export default async function QuestionDetailPage({
       {/* Konten Pertanyaan */}
       <article className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 shadow-xs">
         <div className="text-xs text-slate-400 mb-2">
-          Ditanyakan oleh <span className="font-semibold text-slate-700">{q.author?.display_name || 'Pelaksana'}</span>
+          Ditanyakan oleh <span className="font-semibold text-slate-700">{authorName}</span>
         </div>
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{q.title}</h1>
         <div className="mt-4 text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line border-t pt-4">
