@@ -27,25 +27,39 @@ export default async function HomePage() {
       : [
           {
             id: "1",
-            title: "Tata Cara Penyusunan Laporan Keuangan BLU",
+            title: "Tata Cara Penyusunan Laporan Keuangan BLU Triwulan",
             slug: "tata-cara-penyusunan-laporan-keuangan-blu",
             kind: "tugas" as const,
             created_at: new Date().toISOString(),
           },
           {
             id: "2",
-            title: "Kendala Input Data SPAN di Satker",
-            slug: "kendala-input-data-span-di-satker",
+            title: "Penyelesaian Selisih Kas dan Bank pada Rekonsiliasi SPAN",
+            slug: "penyelesaian-selisih-kas-bank-rekonsiliasi-span",
+            kind: "masalah" as const,
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "3",
+            title: "Prosedur Pengajuan SPM Ganti Uang Persediaan (GUP)",
+            slug: "prosedur-pengajuan-spm-gup",
+            kind: "tugas" as const,
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "4",
+            title: "Solusi Gagal Validasi Data Pegawai PPNPN di SAKTI",
+            slug: "solusi-gagal-validasi-ppnpn-sakti",
             kind: "masalah" as const,
             created_at: new Date().toISOString(),
           },
         ];
 
   return (
-    <main className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+    <main className="w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <HomeHero />
       <QuickMenu />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-stretch">
         <LatestNotesSection notes={notes} />
         <PopularQuestionsSection />
         <TrendingTagsSection />
