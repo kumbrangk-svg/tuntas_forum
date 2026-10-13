@@ -4,7 +4,34 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { HelpCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { HelpCircle, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+
+function SimilarAlert({ items }: { items: any[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+      <div className="flex items-center gap-2 font-bold text-amber-900 mb-2">
+        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+        <span>Mungkin pertanyaan Anda sudah pernah diajukan sebelumnya:</span>
+      </div>
+      <div className="space-y-1.5 divide-y divide-amber-100">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={`/tanya/${item.id}`}
+            target="_blank"
+            className="pt-1.5 first:pt-0 flex items-center justify-between text-blue-700 hover:underline"
+          >
+            <span className="line-clamp-1">{item.title}</span>
+            <span className="text-[10px] text-slate-400 shrink-0 ml-2">
+              ({item.count_info || item.answers_count || 0} jawaban)
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function TanyaBaruPage() {
   const router = useRouter();
@@ -16,12 +43,15 @@ export default function TanyaBaruPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Deteksi kemiripan judul instan (Debounce 350ms)
   useEffect(() => {
     if (title.trim().length < 8) { setSimilarItems([]); return; }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.rpc('suggest_similar', { p_title: title.trim() });
-      if (data) setSimilarItems(data);
+      try {
+        const { data } = await supabase.rpc('suggest_similar', { p_title: title.trim() });
+        if (Array.isArray(data)) setSimilarItems(data);
+      } catch {
+        // Abaikan eror pencarian saran serupa
+      }
     }, 350);
     return () => clearTimeout(timer);
   }, [title]);
@@ -34,18 +64,28 @@ export default function TanyaBaruPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/masuk'); return; }
 
+    const payload = {
+      author_id: user.id,
+      title: title.trim(),
+      body_text: bodyText.trim(),
+      body_json: {},
+      status: 'open',
+    };
+
     const { data, error } = await supabase
       .from('questions')
-      .insert({ author_id: user.id, title: title.trim(), body_text: bodyText.trim() })
+      .insert(payload)
       .select('id')
       .single();
 
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(error.message || 'Gagal menerbitkan pertanyaan.');
       setLoading(false);
-    } else {
-      router.push(`/tanya/${data.id}`);
+      return;
     }
+
+    router.refresh();
+    router.push(`/tanya/${data.id}`);
   };
 
   return (
@@ -77,28 +117,7 @@ export default function TanyaBaruPage() {
           />
         </div>
 
-        {/* Peringatan Pertanyaan Serupa */}
-        {similarItems.length > 0 && (
-          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs">
-            <div className="flex items-center gap-2 font-bold text-amber-900 mb-2">
-              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>Mungkin pertanyaan Anda sudah pernah diajukan sebelumnya:</span>
-            </div>
-            <div className="space-y-1.5 divide-y divide-amber-100">
-              {similarItems.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/tanya/${item.id}`}
-                  target="_blank"
-                  className="pt-1.5 first:pt-0 flex items-center justify-between text-blue-700 hover:underline"
-                >
-                  <span className="line-clamp-1">{item.title}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0 ml-2">({item.count_info} jawaban)</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+        <SimilarAlert items={similarItems} />
 
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -119,8 +138,8 @@ export default function TanyaBaruPage() {
           disabled={loading}
           className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2"
         >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
           <span>{loading ? 'Mengirimkan...' : 'Terbitkan Pertanyaan'}</span>
-          <ArrowRight className="h-4 w-4" />
         </button>
       </form>
     </div>
