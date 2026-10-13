@@ -50,7 +50,7 @@ export default function TanyaBaruPage() {
         const { data } = await supabase.rpc('suggest_similar', { p_title: title.trim() });
         if (Array.isArray(data)) setSimilarItems(data);
       } catch {
-        // Abaikan eror pencarian saran serupa
+        // Lewati jika RPC tidak tersedia
       }
     }, 350);
     return () => clearTimeout(timer);
@@ -64,17 +64,13 @@ export default function TanyaBaruPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/masuk'); return; }
 
-    const payload = {
-      author_id: user.id,
-      title: title.trim(),
-      body_text: bodyText.trim(),
-      body_json: {},
-      status: 'open',
-    };
-
     const { data, error } = await supabase
       .from('questions')
-      .insert(payload)
+      .insert({
+        author_id: user.id,
+        title: title.trim(),
+        body_text: bodyText.trim(),
+      })
       .select('id')
       .single();
 
