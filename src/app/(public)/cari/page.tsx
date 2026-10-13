@@ -1,88 +1,134 @@
-import Link from "next/link";
-import { SearchBar } from "@/components/layout/SearchBar";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import Link from 'next/link';
+import { SearchBar } from '@/components/layout/SearchBar';
+import { createClient } from '@/lib/supabase/server';
 
-interface Props {
-  searchParams: Promise<{ q?: string; jenis?: string; urutan?: string; tag?: string }>;
+interface ResultItem {
+  id: string;
+  title: string;
+  snippet: string;
+  url: string;
+  badge: string;
+  badgeClass: string;
+  meta: string;
 }
 
-export default async function SearchPage({ searchParams }: Props) {
-  const params = await searchParams;
-  const q = params.q || "";
-  const jenis = params.jenis || null;
-  const sort = params.urutan || "relevan";
-  const tag = params.tag || null;
+async function fetchQuestions(supabase: any, q: string, limit = 10): Promise<ResultItem[]> {
+  let query = supabase
+    .from('questions')
+    .select('id, title, body_text, answers_count')
+    .neq('status', 'hidden')
+    .order('created_at', { ascending: false });
 
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
-  );
+  if (q.trim()) query = query.ilike('title', `%${q.trim()}%`);
+  const { data } = await query.limit(limit);
+  if (!data) return [];
 
-  const { data: results } = await supabase.rpc("search_all", {
-    p_q: q,
-    p_kind: jenis,
+  return data.map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    snippet: item.body_text || '',
+    url: `/tanya/${item.id}`,
+    badge: 'Forum Diskusi',
+    badgeClass: 'bg-indigo-100 text-indigo-800',
+    meta: `${item.answers_count || 0} jawaban`,
+  }));
+}
+
+async function fetchNotes(supabase: any, q: string, kind: string | null, tag: string | null, sort: string): Promise<ResultItem[]> {
+  const { data } = await supabase.rpc('search_all', {
+    p_q: q.trim(),
+    p_kind: kind,
     p_tag_slug: tag,
     p_sort: sort,
     p_limit: 20,
     p_offset: 0,
   });
+  if (!data) return [];
+
+  return data.map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    snippet: item.summary || '',
+    url: `/catatan/${item.slug}`,
+    badge: item.kind === 'tugas' ? 'SOP Tugas' : 'Solusi Masalah',
+    badgeClass: item.kind === 'tugas' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800',
+    meta: `★ ${(Number(item.rating_avg) || 0).toFixed(1)} (${item.rating_count || 0})`,
+  }));
+}
+
+function FilterTabs({ q, jenis, sort }: { q: string; jenis: string | null; sort: string }) {
+  const tabs = [
+    { key: null, label: 'Semua' },
+    { key: 'tugas', label: 'Tugas & SOP' },
+    { key: 'masalah', label: 'Solusi Masalah' },
+    { key: 'tanya', label: 'Forum Diskusi' },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2 text-xs">
+      {tabs.map((t) => {
+        const isActive = jenis === t.key;
+        const href = t.key ? `/cari?q=${q}&jenis=${t.key}&urutan=${sort}` : `/cari?q=${q}&urutan=${sort}`;
+        return (
+          <Link
+            key={t.label}
+            href={href}
+            className={`px-3 py-1.5 rounded-full border transition ${isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+          >
+            {t.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; jenis?: string; urutan?: string; tag?: string }>;
+}) {
+  const { q = '', jenis = null, urutan = 'relevan', tag = null } = await searchParams;
+  const supabase = await createClient();
+
+  let results: ResultItem[] = [];
+  if (jenis === 'tanya') {
+    results = await fetchQuestions(supabase, q, 20);
+  } else if (jenis === 'tugas' || jenis === 'masalah') {
+    results = await fetchNotes(supabase, q, jenis, tag, urutan);
+  } else {
+    const [notes, questions] = await Promise.all([
+      fetchNotes(supabase, q, null, tag, urutan),
+      fetchQuestions(supabase, q, 6),
+    ]);
+    results = [...questions, ...notes];
+  }
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <h1 className="text-xl font-bold text-slate-900">Pencarian Pengetahuan APBN</h1>
       <SearchBar defaultValue={q} />
+      <FilterTabs q={q} jenis={jenis} sort={urutan} />
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2 text-xs">
-        <Link
-          href={`/cari?q=${q}&urutan=${sort}`}
-          className={`px-3 py-1.5 rounded-full border ${!jenis ? "bg-emerald-700 text-white" : "bg-white text-slate-700"}`}
-        >
-          Semua
-        </Link>
-        <Link
-          href={`/cari?q=${q}&jenis=tugas&urutan=${sort}`}
-          className={`px-3 py-1.5 rounded-full border ${jenis === "tugas" ? "bg-emerald-700 text-white" : "bg-white text-slate-700"}`}
-        >
-          Tugas & SOP
-        </Link>
-        <Link
-          href={`/cari?q=${q}&jenis=masalah&urutan=${sort}`}
-          className={`px-3 py-1.5 rounded-full border ${jenis === "masalah" ? "bg-emerald-700 text-white" : "bg-white text-slate-700"}`}
-        >
-          Solusi Masalah
-        </Link>
-      </div>
-
-      {/* Daftar Hasil */}
-      <div className="divide-y divide-slate-100 bg-white rounded-xl border border-slate-200">
-        {!results || results.length === 0 ? (
+      <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        {results.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-sm">
-            Tidak ada catatan yang cocok dengan kata kunci &quot;{q}&quot;.
+            Tidak ada konten yang cocok dengan kata kunci &quot;{q}&quot;.
           </div>
         ) : (
-          results.map((item: any) => (
-            <article key={item.id} className="p-4 hover:bg-slate-50">
+          results.map((item) => (
+            <article key={item.id + item.badge} className="p-4 hover:bg-slate-50/70 transition">
               <div className="flex items-center gap-2 text-xs mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded font-medium ${item.kind === "tugas" ? "bg-blue-100 text-blue-800" : "bg-rose-100 text-rose-800"}`}
-                >
-                  {item.kind === "tugas" ? "SOP Tugas" : "Masalah"}
+                <span className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${item.badgeClass}`}>
+                  {item.badge}
                 </span>
-                {item.is_verified && (
-                  <span className="text-emerald-700 font-semibold">✓ Terverifikasi</span>
-                )}
-                <span className="text-slate-400">★ {item.rating_avg.toFixed(1)} ({item.rating_count})</span>
+                <span className="text-slate-400 text-[11px]">{item.meta}</span>
               </div>
-              <h2 className="text-base font-semibold text-slate-900">
-                <Link href={`/catatan/${item.slug}`} className="hover:text-emerald-700">
+              <h2 className="text-base font-bold text-slate-900">
+                <Link href={item.url} className="hover:text-blue-600 transition">
                   {item.title}
                 </Link>
               </h2>
-              <p className="text-sm text-slate-600 line-clamp-2 mt-1">{item.summary}</p>
+              {item.snippet && <p className="text-xs text-slate-600 line-clamp-2 mt-1">{item.snippet}</p>}
             </article>
           ))
         )}
